@@ -1,8 +1,10 @@
 import re
+
 # re helps match strings and search for them
 
 # Store the table data as a dictionary of table names and their rows
 tables = {}
+
 
 def dojob(sql):
     global tables
@@ -30,9 +32,16 @@ def dojob(sql):
 
     elif sql.strip().lower().startswith("select"):
         # Matches words to commands
-        table_name = re.search(r'from (\w+);', sql, re.IGNORECASE).group(1)
-        # Get the rows from the table
-        rows = tables.get(table_name, [])
+        select_match = re.search(r'select (\w+) from (\w+)(?: where (\w+)=(\d+))?;', sql, re.IGNORECASE)
+        if select_match:
+            column, table_name, condition_column, condition_value = select_match.groups()
+            rows = tables.get(table_name, [])
+            if condition_column and condition_value:
+                rows = [row for row in rows if row == int(condition_value)]
+        else:
+            column, table_name = re.search(r'select (\w+) from (\w+);', sql, re.IGNORECASE).groups()
+            rows = tables.get(table_name, [])
+
         # Print the table name
         print(f"Table {table_name}:")
         # Convert the rows to strings and join them with commas
@@ -46,6 +55,7 @@ def dojob(sql):
         # If the command is not recognized, raise an error
         raise ValueError("Invalid SQL command.")
 
+
 def main():
     try:
         sql_commands = [
@@ -58,7 +68,9 @@ def main():
             "insert into b values(4);",
             "insert into b values(5);",
             "select i from a;",
-            "select i from b;"
+            "select i from b;",
+            "select i from a where i=3;",
+            "select i from b where i=4;"
         ]
 
         # Collect the values for each table
@@ -66,15 +78,18 @@ def main():
         for sql in sql_commands:
             values = dojob(sql)
             if values is not None:
-                table_name = re.search(r'from (\w+);', sql, re.IGNORECASE).group(1)
-                table_values[table_name] = values
+                table_name = re.search(r'from (\w+)', sql, re.IGNORECASE).group(1)
+                table_values.setdefault(table_name, []).append(values)
 
         # Print the collected values for each table
-        for table_name, values in table_values.items():
-            print(f"Values for Table {table_name}: {', '.join(map(str, values))}")
+        for table_name, values_list in table_values.items():
+            print(f"Table {table_name}:")
+            for values in values_list:
+                print(', '.join(map(str, values)))
 
     except ValueError as e:
         print(f"Error: {str(e)}")
+
 
 if __name__ == "__main__":
     main()
