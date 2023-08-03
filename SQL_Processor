@@ -1,10 +1,7 @@
 import re
 
-# re helps match strings and search for them
-
 # Store the table data as a dictionary of table names and their rows
 tables = {}
-
 
 def dojob(sql):
     global tables
@@ -12,6 +9,7 @@ def dojob(sql):
     # Regular expression patterns to match SQL commands
     create_match = re.match(r'create table (\w+) \((\w+) int\);', sql, re.IGNORECASE)
     insert_match = re.match(r'insert into (\w+) values\((\d+)\);', sql, re.IGNORECASE)
+    select_match = re.match(r'select (\w+) from (\w+)(?: where (\w+)([><=]+)(\d+))?;', sql, re.IGNORECASE)
 
     if create_match:
         # If it's a "CREATE TABLE" command, extract table_name and column_name
@@ -30,17 +28,21 @@ def dojob(sql):
             # If full, print a message indicating the table is full
             print(f"Table {table_name} is full")
 
-    elif sql.strip().lower().startswith("select"):
-        # Matches words to commands
-        select_match = re.search(r'select (\w+) from (\w+)(?: where (\w+)=(\d+))?;', sql, re.IGNORECASE)
-        if select_match:
-            column, table_name, condition_column, condition_value = select_match.groups()
-            rows = tables.get(table_name, [])
-            if condition_column and condition_value:
-                rows = [row for row in rows if row == int(condition_value)]
-        else:
-            column, table_name = re.search(r'select (\w+) from (\w+);', sql, re.IGNORECASE).groups()
-            rows = tables.get(table_name, [])
+    elif select_match:
+        column, table_name, condition_column, condition_operator, condition_value = select_match.groups()
+        rows = tables.get(table_name, [])
+        if condition_column and condition_operator and condition_value:
+            condition_value = int(condition_value)
+            if condition_operator == ">":
+                rows = [row for row in rows if row > condition_value]
+            elif condition_operator == "<":
+                rows = [row for row in rows if row < condition_value]
+            elif condition_operator == "=":
+                rows = [row for row in rows if row == condition_value]
+            elif condition_operator == ">=":
+                rows = [row for row in rows if row >= condition_value]
+            elif condition_operator == "<=":
+                rows = [row for row in rows if row <= condition_value]
 
         # Print the table name
         print(f"Table {table_name}:")
@@ -70,7 +72,8 @@ def main():
             "select i from a;",
             "select i from b;",
             "select i from a where i=3;",
-            "select i from b where i=4;"
+            "select i from b where i=4;",
+            "select i from b where i<5 and i>2;"  # Modified SELECT command with AND condition
         ]
 
         # Collect the values for each table
@@ -93,4 +96,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
